@@ -22,7 +22,7 @@ sudo apt install unzip -y
 echo "Downloading and configuring Snell server..."
 wget https://dl.nssurge.com/snell/snell-server-v4.0.1-linux-amd64.zip
 unzip snell-server-v4.0.1-linux-amd64.zip -d /usr/local/bin
-/usr/local/bin/snell-server --wizard -c /etc/snell-server.conf
+yes | /usr/local/bin/snell-server --wizard -c /etc/snell-server.conf
 
 # 创建Snell服务文件
 echo "Creating Snell service file..."
