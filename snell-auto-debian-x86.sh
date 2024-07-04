@@ -1,27 +1,81 @@
 #!/bin/bash
 
+# 检测并安装sudo
+if ! dpkg -s sudo > /dev/null 2>&1; then
+    echo "sudo is not installed. Installing sudo..."
+    apt update -y > /dev/null 2>&1
+    apt install sudo -y > /dev/null 2>&1
+else
+    echo "sudo is already installed."
+fi
+
+# 检测并安装iperf3
+if ! dpkg -s iperf3 > /dev/null 2>&1; then
+    echo "iperf3 is not installed. Installing iperf3..."
+    sudo apt update -y > /dev/null 2>&1
+    sudo apt install iperf3 -y > /dev/null 2>&1
+else
+    echo "iperf3 is already installed."
+fi
+
+# 检测并安装dnsutils
+if ! dpkg -s dnsutils > /dev/null 2>&1; then
+    echo "dnsutils is not installed. Installing dnsutils..."
+    sudo apt update -y > /dev/null 2>&1
+    sudo apt install dnsutils -y > /dev/null 2>&1
+else
+    echo "dnsutils is already installed."
+fi
+
+# 检测并安装net-tools
+if ! dpkg -s net-tools > /dev/null 2>&1; then
+    echo "net-tools is not installed. Installing net-tools..."
+    sudo apt update -y > /dev/null 2>&1
+    sudo apt install net-tools -y > /dev/null 2>&1
+else
+    echo "net-tools is already installed."
+fi
+
 # 安装curl
-echo "Installing curl..."
-sudo apt update -y
-sudo apt install curl -y
+if ! dpkg -s curl > /dev/null 2>&1; then
+    echo "curl is not installed. Installing curl..."
+    sudo apt update -y > /dev/null 2>&1
+    sudo apt install curl -y > /dev/null 2>&1
+else
+    echo "curl is already installed."
+fi
 
 # 更新软件包列表并升级系统
 echo "Updating package list and upgrading the system..."
-sudo apt update -y && sudo apt upgrade -y
+sudo apt update -y > /dev/null 2>&1 && sudo apt upgrade -y > /dev/null 2>&1
 
 # 配置TCP BBR
 echo "Configuring TCP BBR..."
-echo "net.core.default_qdisc=fq" | sudo tee -a /etc/sysctl.conf
-echo "net.ipv4.tcp_congestion_control=bbr" | sudo tee -a /etc/sysctl.conf
+echo "net.core.default_qdisc=fq" | sudo tee -a /etc/sysctl.conf > /dev/null
+echo "net.ipv4.tcp_congestion_control=bbr" | sudo tee -a /etc/sysctl.conf > /dev/null
 sudo sysctl -p
 
 # 安装Vim
-echo "Installing Vim..."
-sudo apt install vim -y
+if ! dpkg -s vim > /dev/null 2>&1; then
+    echo "vim is not installed. Installing vim..."
+    sudo apt install vim -y > /dev/null 2>&1
+else
+    echo "vim is already installed."
+fi
 
 # 安装unzip
-echo "Installing unzip..."
-sudo apt install unzip -y
+if ! dpkg -s unzip > /dev/null 2>&1; then
+    echo "unzip is not installed. Installing unzip..."
+    sudo apt install unzip -y > /dev/null 2>&1
+else
+    echo "unzip is already installed."
+fi
+
+# 检测是否已安装Snell服务器
+if command -v snell-server > /dev/null 2>&1; then
+    echo "Snell server is already installed. Exiting script."
+    exit 0
+fi
 
 # 下载并配置Snell服务器
 echo "Downloading and configuring Snell server..."
@@ -58,6 +112,6 @@ sudo systemctl start snell
 
 # 清理无用的包
 echo "Cleaning up unused packages..."
-sudo apt autoremove -y
+sudo apt autoremove -y > /dev/null 2>&1
 
 echo "All installations and configurations are complete!"
