@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# 安装curl
+echo "Installing curl..."
+sudo apt update -y
+sudo apt install curl -y
+
 # 更新软件包列表并升级系统
 echo "Updating package list and upgrading the system..."
 sudo apt update -y && sudo apt upgrade -y
