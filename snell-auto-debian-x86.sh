@@ -9,6 +9,15 @@ else
     echo "sudo is already installed."
 fi
 
+# 检测并安装mtr
+if ! dpkg -s mtr > /dev/null 2>&1; then
+    echo "mtr is not installed. Installing mtr..."
+    sudo apt update -y > /dev/null 2>&1
+    sudo apt install mtr -y > /dev/null 2>&1
+else
+    echo "mtr is already installed."
+fi
+
 # 配置iperf3安装选项
 echo "iperf3 iperf3/start_daemon boolean false" | sudo debconf-set-selections
 
@@ -46,6 +55,15 @@ if ! dpkg -s curl > /dev/null 2>&1; then
     sudo apt install curl -y > /dev/null 2>&1
 else
     echo "curl is already installed."
+fi
+
+# 检测并安装vnstat
+if ! dpkg -s vnstat > /dev/null 2>&1; then
+    echo "vnstat is not installed. Installing vnstat..."
+    sudo apt update -y > /dev/null 2>&1
+    sudo apt install vnstat -y > /dev/null 2>&1
+else
+    echo "vnstat is already installed."
 fi
 
 # 更新软件包列表并升级系统
