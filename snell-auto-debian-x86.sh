@@ -9,6 +9,9 @@ else
     echo "sudo is already installed."
 fi
 
+# 配置iperf3安装选项
+echo "iperf3 iperf3/start_daemon boolean false" | sudo debconf-set-selections
+
 # 检测并安装iperf3
 if ! dpkg -s iperf3 > /dev/null 2>&1; then
     echo "iperf3 is not installed. Installing iperf3..."
