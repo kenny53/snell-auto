@@ -97,10 +97,9 @@ if command -v snell-server > /dev/null 2>&1; then
     echo "Snell server is already installed. Showing /etc/snell-server.conf contents:"
     cat /etc/snell-server.conf
 
-    # 读取并显示本机IPv4和IPv6地址
-    echo "Displaying local IPv4 and IPv6 addresses:"
+    # 读取并显示本机IPv4地址
+    echo "Displaying local IPv4 address:"
     curl -4 ip.sb
-    curl -6 ip.sb
     
     exit 0
 fi
@@ -138,13 +137,11 @@ sudo systemctl daemon-reload
 sudo systemctl enable snell
 sudo systemctl start snell
 
-# 读取并显示本机IPv4和IPv6地址
-echo "Displaying local IPv4 and IPv6 addresses:"
+# 读取并显示本机IPv4地址
+echo "Displaying local IPv4 address:"
 ipv4_address=$(curl -4 ip.sb)
-ipv6_address=$(curl -6 ip.sb)
 
-echo "IPv4 Addresses: $ipv4_address"
-echo "IPv6 Addresses: $ipv6_address"
+echo "IPv4 Address: $ipv4_address"
 
 # 更新 /etc/snell-server.conf 文件内容
 sudo sed -i "s/0.0.0.0/$ipv4_address/g" /etc/snell-server.conf
