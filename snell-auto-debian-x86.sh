@@ -71,15 +71,11 @@ echo "Updating package list..."
 sudo apt update -y > /dev/null 2>&1
 
 # 配置TCP BBR
-if [ -f /etc/sysctl.conf ]; then
-    echo "Clearing and configuring /etc/sysctl.conf for TCP BBR..."
-    sudo truncate -s 0 /etc/sysctl.conf
-    echo "net.core.default_qdisc=fq" | sudo tee -a /etc/sysctl.conf > /dev/null
-    echo "net.ipv4.tcp_congestion_control=bbr" | sudo tee -a /etc/sysctl.conf > /dev/null
-    sudo sysctl -p
-else
-    echo "/etc/sysctl.conf does not exist. Skipping TCP BBR configuration."
-fi
+echo "Clearing and configuring /etc/sysctl.conf for TCP BBR..."
+sudo truncate -s 0 /etc/sysctl.conf
+echo "net.core.default_qdisc=fq" | sudo tee -a /etc/sysctl.conf > /dev/null
+echo "net.ipv4.tcp_congestion_control=bbr" | sudo tee -a /etc/sysctl.conf > /dev/null
+sudo sysctl -p > /dev/null
 
 # 安装Vim
 if ! dpkg -s vim > /dev/null 2>&1; then
