@@ -96,6 +96,12 @@ fi
 if command -v snell-server > /dev/null 2>&1; then
     echo "Snell server is already installed. Showing /etc/snell-server.conf contents:"
     cat /etc/snell-server.conf
+
+    # 读取并显示本机IPv4和IPv6地址
+    echo "Displaying local IPv4 and IPv6 addresses:"
+    hostname -I | awk '{print "IPv4 Addresses: " $1}'
+    ip -6 addr show | grep inet6 | awk '{print "IPv6 Addresses: " $2}'
+    
     exit 0
 fi
 
@@ -131,6 +137,24 @@ echo "Reloading systemd configuration and starting Snell service..."
 sudo systemctl daemon-reload
 sudo systemctl enable snell
 sudo systemctl start snell
+
+# 读取并显示本机IPv4和IPv6地址
+echo "Displaying local IPv4 and IPv6 addresses:"
+ipv4_address=$(hostname -I | awk '{print $1}')
+ipv6_address=$(ip -6 addr show | grep inet6 | awk '{print $2}')
+
+echo "IPv4 Addresses: $ipv4_address"
+echo "IPv6 Addresses: $ipv6_address"
+
+# 显示并更新 /etc/snell-server.conf 文件内容
+echo "Showing /etc/snell-server.conf contents before update:"
+cat /etc/snell-server.conf
+
+echo "Updating /etc/snell-server.conf file to replace 0.0.0.0 with $ipv4_address..."
+sudo sed -i "s/0.0.0.0/$ipv4_address/g" /etc/snell-server.conf
+
+echo "Showing /etc/snell-server.conf contents after update:"
+cat /etc/snell-server.conf
 
 # 清理无用的包
 echo "Cleaning up unused packages..."
