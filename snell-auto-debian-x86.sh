@@ -147,11 +147,10 @@ echo "IPv4 Addresses: $ipv4_address"
 echo "IPv6 Addresses: $ipv6_address"
 
 # 更新 /etc/snell-server.conf 文件内容
-echo "Updating /etc/snell-server.conf file to replace 0.0.0.0 with $ipv4_address..."
 sudo sed -i "s/0.0.0.0/$ipv4_address/g" /etc/snell-server.conf
 
 # 显示 /etc/snell-server.conf 文件内容
-echo "Showing updated /etc/snell-server.conf contents:"
+echo -e "\033[31m\033[1mShowing updated /etc/snell-server.conf contents:\033[0m"
 cat /etc/snell-server.conf
 
 # 清理无用的包
