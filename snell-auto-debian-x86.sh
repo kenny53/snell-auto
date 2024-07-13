@@ -94,7 +94,8 @@ fi
 
 # 检测是否已安装Snell服务器
 if command -v snell-server > /dev/null 2>&1; then
-    echo "Snell server is already installed. Exiting script."
+    echo "Snell server is already installed. Showing /etc/snell-server.conf contents:"
+    cat /etc/snell-server.conf
     exit 0
 fi
 
