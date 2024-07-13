@@ -99,8 +99,8 @@ if command -v snell-server > /dev/null 2>&1; then
 
     # 读取并显示本机IPv4和IPv6地址
     echo "Displaying local IPv4 and IPv6 addresses:"
-    hostname -I | awk '{print "IPv4 Addresses: " $1}'
-    ip -6 addr show | grep inet6 | awk '{print "IPv6 Addresses: " $2}'
+    curl -4 ip.sb
+    curl -6 ip.sb
     
     exit 0
 fi
@@ -140,20 +140,18 @@ sudo systemctl start snell
 
 # 读取并显示本机IPv4和IPv6地址
 echo "Displaying local IPv4 and IPv6 addresses:"
-ipv4_address=$(hostname -I | awk '{print $1}')
-ipv6_address=$(ip -6 addr show | grep inet6 | awk '{print $2}')
+ipv4_address=$(curl -4 ip.sb)
+ipv6_address=$(curl -6 ip.sb)
 
 echo "IPv4 Addresses: $ipv4_address"
 echo "IPv6 Addresses: $ipv6_address"
 
-# 显示并更新 /etc/snell-server.conf 文件内容
-echo "Showing /etc/snell-server.conf contents before update:"
-cat /etc/snell-server.conf
-
+# 更新 /etc/snell-server.conf 文件内容
 echo "Updating /etc/snell-server.conf file to replace 0.0.0.0 with $ipv4_address..."
 sudo sed -i "s/0.0.0.0/$ipv4_address/g" /etc/snell-server.conf
 
-echo "Showing /etc/snell-server.conf contents after update:"
+# 显示 /etc/snell-server.conf 文件内容
+echo "Showing updated /etc/snell-server.conf contents:"
 cat /etc/snell-server.conf
 
 # 清理无用的包
