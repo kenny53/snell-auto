@@ -66,9 +66,9 @@ else
     echo "vnstat is already installed."
 fi
 
-# 更新软件包列表并升级系统
-echo "Updating package list and upgrading the system..."
-sudo apt update -y > /dev/null 2>&1 && sudo apt upgrade -y > /dev/null 2>&1
+# 更新软件包列表
+echo "Updating package list..."
+sudo apt update -y > /dev/null 2>&1
 
 # 配置TCP BBR
 echo "Configuring TCP BBR..."
