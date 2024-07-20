@@ -110,9 +110,19 @@ if command -v snell-server > /dev/null 2>&1; then
 fi
 
 # 下载并配置Snell服务器
-echo "Downloading and configuring Snell server..."
-wget https://dl.nssurge.com/snell/snell-server-v4.0.1-linux-amd64.zip
-unzip snell-server-v4.0.1-linux-amd64.zip -d /usr/local/bin
+arch=$(uname -m)
+if [ "$arch" = "x86_64" ]; then
+    snell_url="https://dl.nssurge.com/snell/snell-server-v4.0.1-linux-amd64.zip"
+elif [[ "$arch" == arm* ]]; then
+    snell_url="https://dl.nssurge.com/snell/snell-server-v4.0.1-linux-armv7l.zip"
+else
+    echo "Unsupported architecture: $arch"
+    exit 1
+fi
+
+echo "Downloading and configuring Snell server for architecture: $arch..."
+wget $snell_url
+unzip snell-server-*.zip -d /usr/local/bin
 yes | /usr/local/bin/snell-server --wizard -c /etc/snell-server.conf
 
 # 创建Snell服务文件
