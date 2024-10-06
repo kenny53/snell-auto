@@ -112,9 +112,9 @@ fi
 # 下载并配置Snell服务器
 arch=$(uname -m)
 if [ "$arch" = "x86_64" ]; then
-    snell_url="https://dl.nssurge.com/snell/snell-server-v4.0.1-linux-amd64.zip"
+    snell_url="https://dl.nssurge.com/snell/snell-server-v4.1.1-linux-amd64.zip"
 elif [[ "$arch" == arm* ]]; then
-    snell_url="https://dl.nssurge.com/snell/snell-server-v4.0.1-linux-armv7l.zip"
+    snell_url="https://dl.nssurge.com/snell/snell-server-v4.1.1-linux-armv7l.zip"
 else
     echo "Unsupported architecture: $arch"
     exit 1
