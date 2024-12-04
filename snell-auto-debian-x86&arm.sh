@@ -2,6 +2,13 @@
 
 set -e
 
+# 检测是否已安装 Snell 服务器
+if [ -f /usr/local/bin/snell-server ]; then
+    echo "Snell server is already installed. Displaying /etc/snell-server.conf contents:"
+    cat /etc/snell-server.conf
+    exit 0
+fi
+
 # 检测系统架构
 arch=$(uname -m)
 case "$arch" in
