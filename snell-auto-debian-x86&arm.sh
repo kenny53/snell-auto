@@ -38,10 +38,10 @@ echo "net.core.default_qdisc=fq" | sudo tee -a /etc/sysctl.conf
 echo "net.ipv4.tcp_congestion_control=bbr" | sudo tee -a /etc/sysctl.conf
 sudo sysctl -p
 
-# 下载并安装最新版本的 Snell 服务器
+# 下载并安装最新版本的 Snell 服务器，直接覆盖
 echo "Downloading Snell server from: $snell_url..."
 wget -q "$snell_url" -O snell-server.zip
-unzip -q snell-server.zip -d /usr/local/bin
+unzip -o -q snell-server.zip -d /usr/local/bin  # 使用 -o 选项直接覆盖
 chmod +x /usr/local/bin/snell-server
 rm snell-server.zip
 
