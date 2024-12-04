@@ -32,8 +32,9 @@ sudo apt upgrade -y
 echo "Installing necessary packages..."
 sudo apt install -y wget unzip
 
-# 配置 TCP BBR
+# 清空 sysctl.conf 文件并配置 TCP BBR
 echo "Configuring TCP BBR..."
+sudo bash -c 'echo "" > /etc/sysctl.conf'  # 清空 sysctl.conf
 echo "net.core.default_qdisc=fq" | sudo tee -a /etc/sysctl.conf
 echo "net.ipv4.tcp_congestion_control=bbr" | sudo tee -a /etc/sysctl.conf
 sudo sysctl -p
