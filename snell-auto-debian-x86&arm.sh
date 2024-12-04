@@ -133,12 +133,51 @@ else
         sudo rm -f /usr/local/bin/snell-server
     fi
 
+# 下载并安装最新版本
+if [ "$installed_version" = "$latest_version" ]; then
+    echo "Snell server is up-to-date (version: $installed_version)."
+else
+    echo "Newer Snell server version available (version: $latest_version). Updating..."
+
+    # 停止现有的 Snell 服务
+    if systemctl is-active --quiet snell; then
+        echo "Stopping existing Snell server..."
+        sudo systemctl stop snell
+    fi
+
+    # 删除现有的 Snell 服务器二进制文件
+    if [ -f /usr/local/bin/snell-server ]; then
+        echo "Removing old Snell server binary..."
+        sudo rm -f /usr/local/bin/snell-server
+    fi
+
     # 下载并安装最新版本
     echo "Downloading Snell server version: $latest_version for architecture: $arch..."
     wget $snell_url
     unzip snell-server-$latest_version-linux-*.zip -d /usr/local/bin
-    yes | /usr/local/bin/snell-server --wizard -c /etc/snell-server.conf
+
+    # 创建 systemd 服务文件
+    echo "Creating systemd service file for Snell..."
+    sudo bash -c 'cat << EOF > /etc/systemd/system/snell.service
+[Unit]
+Description=Snell Server
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/snell-server -c /etc/snell-server.conf
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF'
 fi
+
+# 重新加载systemd配置并启动新版本Snell服务
+echo "Reloading systemd configuration and starting Snell service..."
+sudo systemctl daemon-reload
+sudo systemctl enable snell
+sudo systemctl start snell
+
 
 # 重新加载systemd配置并启动新版本Snell服务
 echo "Reloading systemd configuration and starting Snell service..."
