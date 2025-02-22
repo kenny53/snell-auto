@@ -1,69 +1,45 @@
 #!/bin/bash
 
-set -e  # 遇到错误时立即退出
+set -e
 
-# 颜色标注输出
-GREEN="\e[32m"
-RED="\e[31m"
-RESET="\e[0m"
-
-echo -e "${GREEN}📌 1. 更新系统...${RESET}"
+echo "1. 更新并升级系统..."
 apt update && apt upgrade -y
 
-echo -e "${GREEN}📌 2. 启用 BBR 加速...${RESET}"
+echo "2. 启用 BBR 网络优化..."
 echo "net.core.default_qdisc=fq" | tee -a /etc/sysctl.conf
 echo "net.ipv4.tcp_congestion_control=bbr" | tee -a /etc/sysctl.conf
 sysctl -p
 
-echo -e "${GREEN}📌 3. 安装必要的软件...${RESET}"
-apt install -y vim mtr curl wget jq
+echo "3. 安装 vim 和 mtr..."
+apt install -y vim mtr
 
-echo -e "${GREEN}📌 4. 创建 Shadowsocks-Rust 目录...${RESET}"
+echo "4. 创建 Shadowsocks-rust 目录..."
 INSTALL_DIR="/usr/local/etc/shadowsocks-rust"
 mkdir -p "$INSTALL_DIR"
 cd "$INSTALL_DIR"
 
-echo -e "${GREEN}📌 5. 获取 Shadowsocks-Rust 最新版本...${RESET}"
+echo "5. 获取 Shadowsocks-rust 最新版本..."
+LATEST_URL=$(curl -sL https://api.github.com/repos/shadowsocks/shadowsocks-rust/releases/latest | grep 'browser_download_url' | grep 'x86_64-unknown-linux-gnu.tar.xz' | cut -d '"' -f 4)
 
-# 使用 GitHub API 获取最新版本号
-LATEST_VERSION=$(curl -s https://api.github.com/repos/shadowsocks/shadowsocks-rust/releases/latest | jq -r '.tag_name')
-
-# 如果获取失败，尝试备用方案
-if [[ -z "$LATEST_VERSION" || "$LATEST_VERSION" == "null" ]]; then
-    echo -e "${RED}❌ 获取 Shadowsocks 版本失败，尝试备用方式...${RESET}"
-    LATEST_VERSION=$(curl -s https://api.github.com/repos/shadowsocks/shadowsocks-rust/releases | jq -r '.[0].tag_name')
-fi
-
-# 如果仍然失败，则退出
-if [[ -z "$LATEST_VERSION" || "$LATEST_VERSION" == "null" ]]; then
-    echo -e "${RED}❌ 无法获取 Shadowsocks-Rust 最新版本号，请检查 GitHub 访问或 API 是否受限。${RESET}"
+if [[ -z "$LATEST_URL" ]]; then
+    echo "❌ 无法获取 Shadowsocks-rust 最新版下载链接，请检查 GitHub 访问或 API 是否正常。"
     exit 1
 fi
 
-echo -e "✅  最新版本: $LATEST_VERSION"
-
-# 生成正确的 Shadowsocks-Rust 下载链接
-ARCH="x86_64-unknown-linux-gnu"
-FILENAME="shadowsocks-${LATEST_VERSION}.${ARCH}.tar.xz"
-DOWNLOAD_URL="https://github.com/shadowsocks/shadowsocks-rust/releases/${LATEST_VERSION}/${FILENAME}"
-
-echo -e "✅  下载链接: ${LATEST_URL}"
+echo "✅ 下载地址：$LATEST_URL"
 wget -q --show-progress "$LATEST_URL" -O ss-rust.tar.xz
 
-echo -e "${GREEN}📌 6. 解压 Shadowsocks-Rust...${RESET}"
+echo "6. 解压 Shadowsocks-rust..."
 tar -xvf ss-rust.tar.xz --strip-components=1
 rm -f ss-rust.tar.xz
 
-echo -e "${GREEN}📌 7. 生成 Shadowsocks-2022 的安全密码...${RESET}"
+echo "7. 生成 Shadowsocks-2022 加密密钥..."
 PASSWORD=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 16)
 
-echo -e "${GREEN}📌 8. 生成随机端口号 (1024 ~ 65535)...${RESET}"
+echo "🛠 生成随机端口号 (1024-65535)..."
 SERVER_PORT=$((RANDOM % 64512 + 1024))
 
-echo -e "${GREEN}📌 9. 获取服务器公网 IP...${RESET}"
-SERVER_IP=$(curl -s ifconfig.me || curl -s ipinfo.io/ip || curl -s https://api64.ipify.org)
-
-echo -e "${GREEN}📌 10. 创建 Shadowsocks 配置文件...${RESET}"
+echo "8. 创建 Shadowsocks 配置文件..."
 cat <<EOF > "$INSTALL_DIR/config.json"
 {
     "server": "0.0.0.0",
@@ -73,12 +49,16 @@ cat <<EOF > "$INSTALL_DIR/config.json"
 }
 EOF
 
-echo -e "✅ 配置文件已创建! 📄"
+echo "✅ 配置文件创建成功！"
+echo "📌 服务器监听地址: 0.0.0.0"
+echo "📌 服务器端口号: $SERVER_PORT"
+echo "📌 加密方式: 2022-blake3-aes-256-gcm"
+echo "📌 密码: $PASSWORD"
 
-echo -e "${GREEN}📌 11. 创建 Systemd 服务...${RESET}"
+echo "9. 创建 systemd 服务..."
 cat <<EOF > /etc/systemd/system/shadowsocks-rust.service
 [Unit]
-Description=Shadowsocks Rust 代理服务
+Description=Shadowsocks Rust Service
 After=network.target
 
 [Service]
@@ -93,20 +73,13 @@ NoNewPrivileges=true
 WantedBy=multi-user.target
 EOF
 
-echo -e "✅ Systemd 服务已创建! 🛠"
+echo "✅ systemd 服务文件创建成功！"
 
-echo -e "${GREEN}📌 12. 启动 Shadowsocks 服务并设为开机自启...${RESET}"
+echo "10. 启动并设置 Shadowsocks-rust 开机自启..."
 systemctl daemon-reload
 systemctl enable --now shadowsocks-rust
 
-echo -e "🎉 Shadowsocks-Rust 成功安装并运行！ 🚀"
-echo -e "📢 使用以下命令检查服务状态: ${GREEN}systemctl status shadowsocks-rust${RESET}"
-
-echo -e "${GREEN}🔥 Shadowsocks 配置信息如下:${RESET}"
-echo "=================================="
-echo -e "🌍 服务器 IP 地址: ${GREEN}$SERVER_IP${RESET}"
-echo -e "🔌 服务器端口号  : ${GREEN}$SERVER_PORT${RESET}"
-echo -e "🔐 加密方式      : ${GREEN}2022-blake3-aes-256-gcm${RESET}"
-echo -e "🔑 密码          : ${GREEN}$PASSWORD${RESET}"
-echo "=================================="
-echo "📢 请使用上述信息配置你的 Shadowsocks 客户端! ✅"
+echo "🎉 安装完成！Shadowsocks-rust 已启动并设置为开机自启"
+echo "📢 使用 systemctl status shadowsocks-rust 检查状态"
+echo "🔥 Shadowsocks-rust 运行状态:"
+systemctl status shadowsocks-rust --no-pager -l
