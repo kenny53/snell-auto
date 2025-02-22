@@ -42,8 +42,10 @@ fi
 
 echo -e "✅  最新版本: $LATEST_VERSION"
 
-# 构造下载链接
-LATEST_URL="https://github.com/shadowsocks/shadowsocks-rust/releases/download/${LATEST_VERSION}/shadowsocks-${LATEST_VERSION}-x86_64-unknown-linux-gnu.tar.xz"
+# 生成正确的 Shadowsocks-Rust 下载链接
+ARCH="x86_64-unknown-linux-gnu"
+FILENAME="shadowsocks-${LATEST_VERSION}.${ARCH}.tar.xz"
+DOWNLOAD_URL="https://github.com/shadowsocks/shadowsocks-rust/releases/${LATEST_VERSION}/${FILENAME}"
 
 echo -e "✅  下载链接: ${LATEST_URL}"
 wget -q --show-progress "$LATEST_URL" -O ss-rust.tar.xz
