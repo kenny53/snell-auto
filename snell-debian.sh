@@ -12,7 +12,6 @@ fi
 ### Step 1: 设置时区 ###
 echo "[1/6] 设置时区为 Asia/Hong_Kong"
 timedatectl set-timezone Asia/Hong_Kong
-timedatectl set-ntp true
 
 ### Step 2: 更新系统 ###
 echo "[2/6] 更新系统并安装常用软件包"
