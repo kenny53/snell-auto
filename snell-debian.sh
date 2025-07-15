@@ -12,7 +12,7 @@ get_ip() {
 
 show_config() {
   if [ -f "$CONFIG_FILE" ]; then
-    SNELL_PORT=$(grep '^port' "$CONFIG_FILE" | awk -F'=' '{print $2}' | tr -d ' ')
+    SNELL_PORT=$(grep '^listen' "$CONFIG_FILE" | awk -F':' '{print $2}' | tr -d ' ')
     SNELL_PSK=$(grep '^psk' "$CONFIG_FILE" | awk -F'=' '{print $2}' | tr -d ' ')
     echo
     echo "=== Snell 服务信息 ==="
@@ -25,7 +25,7 @@ show_config() {
   fi
 }
 
-# Step 0: 检查是否已存在 snell-server
+# 检查是否已存在 snell-server
 if [ -f "$SNELL_BIN" ]; then
   echo "⚠️ 检测到已存在 $SNELL_BIN，跳过安装，直接显示信息。"
   get_ip
@@ -47,7 +47,7 @@ fi
 echo "[1/6] 设置时区为 Asia/Hong_Kong"
 timedatectl set-timezone Asia/Hong_Kong
 
-### Step 2: 更新系统 ###
+### Step 2: 更新系统并安装常用软件包 ###
 echo "[2/6] 更新系统并安装常用软件包"
 apt update && apt upgrade -y
 apt install -y curl wget vim git htop sudo lsof \
@@ -97,21 +97,20 @@ wget -N "$SNELL_URL"
 unzip -o snell-server-v5.0.0-*.zip
 chmod +x snell-server
 
-### Step 5: 自动生成配置文件 ###
+### Step 5: 自动生成新版 snell-server.conf ###
 echo "[5/6] 检查 Snell 配置文件是否存在..."
 
 if [ ! -f "$CONFIG_FILE" ]; then
   echo "未检测到 snell-server.conf，自动生成配置..."
 
-  # 更安全的随机端口（1025–65535）
   SNELL_PORT=$(shuf -i 1025-65535 -n 1)
-
-  # 随机 32 字符 PSK
-  SNELL_PSK=$(openssl rand -hex 16)
+  SNELL_PSK=$(openssl rand -base64 24 | tr -d '/+=' | cut -c1-32)
 
   cat <<EOF > "$CONFIG_FILE"
-port = $SNELL_PORT
+[snell-server]
+listen = 0.0.0.0:$SNELL_PORT
 psk = $SNELL_PSK
+ipv6 = false
 EOF
 
   echo "✅ 已生成配置文件: $CONFIG_FILE"
