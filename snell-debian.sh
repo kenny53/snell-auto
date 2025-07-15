@@ -5,24 +5,31 @@ TARGET_DIR="/usr/local/etc"
 SNELL_BIN="$TARGET_DIR/snell-server"
 CONFIG_FILE="$TARGET_DIR/snell-server.conf"
 
-# Step 0: 检查是否已存在 snell-server
-if [ -f "$SNELL_BIN" ]; then
-  echo "⚠️ 检测到已存在 $SNELL_BIN，跳过安装，直接显示信息。"
-
+get_ip() {
   IPV4=$(ip -4 addr show scope global | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | head -n1)
   IPV6=$(ip -6 addr show scope global | grep -oP '(?<=inet6\s)[a-f0-9:]+(?=/)' | head -n1)
+}
 
-  echo "IPv4 地址: ${IPV4:-未检测到}"
-  echo "IPv6 地址: ${IPV6:-未检测到}"
-
+show_config() {
   if [ -f "$CONFIG_FILE" ]; then
+    SNELL_PORT=$(grep '^port' "$CONFIG_FILE" | awk -F'=' '{print $2}' | tr -d ' ')
+    SNELL_PSK=$(grep '^psk' "$CONFIG_FILE" | awk -F'=' '{print $2}' | tr -d ' ')
     echo
-    echo "🔧 Snell 配置内容："
-    grep -E '^port|^psk' "$CONFIG_FILE"
+    echo "=== Snell 服务信息 ==="
+    echo "IPv4 地址: ${IPV4:-未检测到}"
+    echo "Snell 端口: ${SNELL_PORT:-未检测到}"
+    echo "Snell PSK:  ${SNELL_PSK:-未检测到}"
+    # echo "IPv6 地址: ${IPV6:-未检测到}"   # 如需IPv6请取消注释
   else
     echo "⚠️ 未找到 Snell 配置文件"
   fi
+}
 
+# Step 0: 检查是否已存在 snell-server
+if [ -f "$SNELL_BIN" ]; then
+  echo "⚠️ 检测到已存在 $SNELL_BIN，跳过安装，直接显示信息。"
+  get_ip
+  show_config
   echo
   systemctl status snell-server --no-pager || true
   exit 0
@@ -135,23 +142,8 @@ systemctl daemon-reload
 systemctl enable --now snell-server
 
 ### 显示网络信息与 Snell 配置 ###
-echo
-echo "=== ✅ 初始化完成 ==="
-
-IPV4=$(ip -4 addr show scope global | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | head -n1)
-IPV6=$(ip -6 addr show scope global | grep -oP '(?<=inet6\s)[a-f0-9:]+(?=/)' | head -n1)
-
-echo "IPv4 地址: ${IPV4:-未检测到}"
-echo "IPv6 地址: ${IPV6:-未检测到}"
-
-if [ -f "$CONFIG_FILE" ]; then
-  echo
-  echo "🔧 Snell 配置内容："
-  grep -E '^port|^psk' "$CONFIG_FILE"
-else
-  echo "⚠️ 未找到 Snell 配置文件"
-fi
-
+get_ip
+show_config
 echo
 systemctl status snell-server --no-pager
 
