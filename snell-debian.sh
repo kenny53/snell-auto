@@ -5,7 +5,7 @@ echo "=== Debian 12 全自动初始化脚本（含 Snell Server）==="
 
 # 检查是否为 root
 if [ "$(id -u)" -ne 0 ]; then
-  echo "请以 root 用户执行此脚本。"
+  echo "❌ 请以 root 用户执行此脚本。"
   exit 1
 fi
 
@@ -30,8 +30,6 @@ net.core.default_qdisc = fq
 net.ipv4.tcp_congestion_control = bbr
 EOF
 fi
-
-# 容错处理，避免中断脚本
 sysctl -p || echo "⚠️ sysctl -p 执行失败，BBR 可能未正确应用，请手动检查"
 
 ### Step 4: 下载 Snell Server ###
@@ -66,15 +64,27 @@ wget -N "$SNELL_URL"
 unzip -o snell-server-v5.0.0-*.zip
 chmod +x snell-server
 
-### Step 5: 首次启动 Snell ###
-echo "[5/6] 首次运行 snell-server，自动生成配置..."
-yes | ./snell-server >/dev/null 2>&1 &
-sleep 3
-killall snell-server || true
+### Step 5: 自动生成配置文件 ###
+echo "[5/6] 检查 Snell 配置文件是否存在..."
 
-if [ ! -f "$TARGET_DIR/snell-server.conf" ]; then
-  echo "❌ Snell 配置文件生成失败，请手动运行 ./snell-server 一次"
-  exit 1
+CONFIG_FILE="$TARGET_DIR/snell-server.conf"
+if [ ! -f "$CONFIG_FILE" ]; then
+  echo "未检测到 snell-server.conf，自动生成配置..."
+
+  # 随机端口（1025–65535）
+  SNELL_PORT=$(( RANDOM % 64511 + 1025 ))
+
+  # 随机 32 字符 PSK
+  SNELL_PSK=$(openssl rand -hex 16)
+
+  cat <<EOF > "$CONFIG_FILE"
+port = $SNELL_PORT
+psk = $SNELL_PSK
+EOF
+
+  echo "✅ 已生成配置文件: $CONFIG_FILE"
+else
+  echo "已存在配置文件，跳过生成"
 fi
 
 ### Step 6: 注册为 systemd 服务 ###
@@ -88,7 +98,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=$TARGET_DIR
-ExecStart=$TARGET_DIR/snell-server -c $TARGET_DIR/snell-server.conf
+ExecStart=$TARGET_DIR/snell-server -c $CONFIG_FILE
 Restart=on-failure
 RestartSec=5
 
@@ -99,12 +109,25 @@ EOF
 systemctl daemon-reexec
 systemctl daemon-reload
 systemctl enable snell-server
-systemctl start snell-server
+systemctl restart snell-server
 
-### 显示网络信息 ###
+### 显示网络信息与 Snell 配置 ###
 echo
 echo "=== ✅ 初始化完成 ==="
-echo "IPv4 地址: $(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '^127' | head -n1)"
-echo "IPv6 地址: $(ip -6 addr show scope global | grep -oP '(?<=inet6\s)[a-f0-9:]+(?=/)' | head -n1)"
+
+IPV4=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '^127' | head -n1)
+IPV6=$(ip -6 addr show scope global | grep -oP '(?<=inet6\s)[a-f0-9:]+(?=/)' | head -n1)
+
+echo "IPv4 地址: $IPV4"
+echo "IPv6 地址: $IPV6"
+
+if [ -f "$CONFIG_FILE" ]; then
+  echo
+  echo "🔧 Snell 配置内容："
+  grep -E '^port|^psk' "$CONFIG_FILE"
+else
+  echo "⚠️ 未找到 Snell 配置文件"
+fi
+
 echo
 systemctl status snell-server --no-pager
