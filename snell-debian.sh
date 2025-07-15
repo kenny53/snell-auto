@@ -30,7 +30,9 @@ net.core.default_qdisc = fq
 net.ipv4.tcp_congestion_control = bbr
 EOF
 fi
-sysctl -p
+
+# 容错处理，避免中断脚本
+sysctl -p || echo "⚠️ sysctl -p 执行失败，BBR 可能未正确应用，请手动检查"
 
 ### Step 4: 下载 Snell Server ###
 echo "[4/6] 检测系统架构并下载 Snell Server"
@@ -64,7 +66,7 @@ wget -N "$SNELL_URL"
 unzip -o snell-server-v5.0.0-*.zip
 chmod +x snell-server
 
-### Step 5: 首次启动 Snell（生成配置） ###
+### Step 5: 首次启动 Snell ###
 echo "[5/6] 首次运行 snell-server，自动生成配置..."
 yes | ./snell-server >/dev/null 2>&1 &
 sleep 3
