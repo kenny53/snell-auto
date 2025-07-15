@@ -1,6 +1,33 @@
 #!/bin/bash
 set -e
 
+TARGET_DIR="/usr/local/etc"
+SNELL_BIN="$TARGET_DIR/snell-server"
+CONFIG_FILE="$TARGET_DIR/snell-server.conf"
+
+# Step 0: 检查是否已存在 snell-server
+if [ -f "$SNELL_BIN" ]; then
+  echo "⚠️ 检测到已存在 $SNELL_BIN，跳过安装，直接显示信息。"
+
+  IPV4=$(ip -4 addr show scope global | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | head -n1)
+  IPV6=$(ip -6 addr show scope global | grep -oP '(?<=inet6\s)[a-f0-9:]+(?=/)' | head -n1)
+
+  echo "IPv4 地址: ${IPV4:-未检测到}"
+  echo "IPv6 地址: ${IPV6:-未检测到}"
+
+  if [ -f "$CONFIG_FILE" ]; then
+    echo
+    echo "🔧 Snell 配置内容："
+    grep -E '^port|^psk' "$CONFIG_FILE"
+  else
+    echo "⚠️ 未找到 Snell 配置文件"
+  fi
+
+  echo
+  systemctl status snell-server --no-pager || true
+  exit 0
+fi
+
 echo "=== Debian 12 全自动初始化脚本（含 Snell Server）==="
 
 # 检查是否为 root
@@ -18,11 +45,11 @@ echo "[2/6] 更新系统并安装常用软件包"
 apt update && apt upgrade -y
 apt install -y curl wget vim git htop sudo lsof \
   net-tools unzip ca-certificates gnupg \
-  bash-completion build-essential
+  bash-completion build-essential openssl dnsutils
 
 ### Step 3: 启用 BBR ###
 echo "[3/6] 启用 TCP BBR 拥塞控制"
-if ! grep -q "tcp_bbr" /etc/sysctl.conf; then
+if ! grep -q "net\.ipv4\.tcp_congestion_control = bbr" /etc/sysctl.conf; then
   cat <<EOF >> /etc/sysctl.conf
 
 # 启用 BBR 拥塞控制
@@ -37,7 +64,6 @@ echo "[4/6] 检测系统架构并下载 Snell Server"
 
 ARCH=$(uname -m)
 SNELL_URL=""
-TARGET_DIR="/usr/local/etc"
 mkdir -p "$TARGET_DIR"
 
 case "$ARCH" in
@@ -67,12 +93,11 @@ chmod +x snell-server
 ### Step 5: 自动生成配置文件 ###
 echo "[5/6] 检查 Snell 配置文件是否存在..."
 
-CONFIG_FILE="$TARGET_DIR/snell-server.conf"
 if [ ! -f "$CONFIG_FILE" ]; then
   echo "未检测到 snell-server.conf，自动生成配置..."
 
-  # 随机端口（1025–65535）
-  SNELL_PORT=$(( RANDOM % 64511 + 1025 ))
+  # 更安全的随机端口（1025–65535）
+  SNELL_PORT=$(shuf -i 1025-65535 -n 1)
 
   # 随机 32 字符 PSK
   SNELL_PSK=$(openssl rand -hex 16)
@@ -106,20 +131,18 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
 
-systemctl daemon-reexec
 systemctl daemon-reload
-systemctl enable snell-server
-systemctl restart snell-server
+systemctl enable --now snell-server
 
 ### 显示网络信息与 Snell 配置 ###
 echo
 echo "=== ✅ 初始化完成 ==="
 
-IPV4=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '^127' | head -n1)
+IPV4=$(ip -4 addr show scope global | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | head -n1)
 IPV6=$(ip -6 addr show scope global | grep -oP '(?<=inet6\s)[a-f0-9:]+(?=/)' | head -n1)
 
-echo "IPv4 地址: $IPV4"
-echo "IPv6 地址: $IPV6"
+echo "IPv4 地址: ${IPV4:-未检测到}"
+echo "IPv6 地址: ${IPV6:-未检测到}"
 
 if [ -f "$CONFIG_FILE" ]; then
   echo
@@ -131,3 +154,4 @@ fi
 
 echo
 systemctl status snell-server --no-pager
+
