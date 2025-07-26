@@ -43,16 +43,18 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 
-### Step 1: 设置时区 ###
-echo "[1/6] 设置时区为 Asia/Hong_Kong"
-timedatectl set-timezone Asia/Hong_Kong
-
-### Step 2: 更新系统并安装常用软件包 ###
-echo "[2/6] 更新系统并安装常用软件包"
+### Step 1: 更新系统并安装常用软件包 ###
+echo "[1/6] 更新系统并安装常用软件包"
 apt update && apt upgrade -y
 apt install -y curl wget vim git htop sudo lsof \
   net-tools unzip ca-certificates gnupg \
-  bash-completion build-essential openssl dnsutils
+  bash-completion build-essential openssl dnsutils ntpdate
+  
+### Step 2: 设置时区 ###
+echo "[2/6] 设置时区为 Asia/Hong_Kong"
+timedatectl set-timezone Asia/Hong_Kong
+ntpdate time.cloudflare.com
+
 
 ### Step 3: 启用 BBR ###
 echo "[3/6] 启用 TCP BBR 拥塞控制"
