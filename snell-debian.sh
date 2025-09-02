@@ -50,12 +50,6 @@ apt install -y curl wget vim git htop sudo lsof \
   net-tools unzip ca-certificates gnupg \
   bash-completion build-essential openssl dnsutils ntpdate
   
-### Step 2: 设置时区 ###
-echo "[2/6] 设置时区为 Asia/Hong_Kong"
-timedatectl set-timezone Asia/Hong_Kong
-ntpdate time.cloudflare.com
-
-
 ### Step 3: 启用 BBR ###
 echo "[3/6] 启用 TCP BBR 拥塞控制"
 if ! grep -q "net\.ipv4\.tcp_congestion_control = bbr" /etc/sysctl.conf; then
