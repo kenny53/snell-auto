@@ -1,84 +1,126 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# === Basic ===
 REPO="SagerNet/sing-box"
 BIN_DIR="/usr/local/bin"
 ETC_DIR="/etc/sing-box"
 SERVICE_FILE="/etc/systemd/system/sing-box.service"
 SB_USER="sing-box"
 
-if [[ $EUID -ne 0 ]]; then
-  echo "Please run as root (sudo)"; exit 1
-fi
+# 需要 curl、jq、tar、setcap
+need() { command -v "$1" >/dev/null 2>&1 || { apt-get update && apt-get install -y "$2"; }; }
+[[ $EUID -eq 0 ]] || { echo "Please run as root (sudo)"; exit 1; }
+need curl curl
+need jq jq
+need tar tar
+need setcap libcap2-bin
+need sha256sum coreutils
+need sed sed
 
-command -v curl >/dev/null || { apt-get update && apt-get install -y curl; }
-command -v tar  >/dev/null || { apt-get update && apt-get install -y tar; }
-command -v sed  >/dev/null || { apt-get update && apt-get install -y sed; }
-command -v sha256sum >/dev/null || { apt-get update && apt-get install -y coreutils; }
-command -v setcap >/dev/null || { apt-get update && apt-get install -y libcap2-bin; }
-
-# === Arch map (Debian x86 家族优先) ===
+# 映射 Debian 架构到 sing-box 资产关键字
 DEB_ARCH=$(dpkg --print-architecture)
 case "$DEB_ARCH" in
-  amd64)  SB_PLAT="linux-amd64" ;;
-  i386)   SB_PLAT="linux-386"   ;;
-  # 兼容其他：如需可自行删掉
-  arm64)  SB_PLAT="linux-arm64" ;;
-  armhf)  SB_PLAT="linux-armv7" ;;
-  riscv64) SB_PLAT="linux-riscv64" ;;
-  *)
-    echo "Unsupported architecture: $DEB_ARCH"; exit 2
-  ;;
+  amd64)   CANDS=("linux-amd64v3" "linux-amd64") ;;  # 优先 v3，有些版本才有
+  i386)    CANDS=("linux-386") ;;
+  arm64)   CANDS=("linux-arm64") ;;
+  armhf)   CANDS=("linux-armv7") ;;
+  riscv64) CANDS=("linux-riscv64") ;;
+  *) echo "Unsupported architecture: $DEB_ARCH"; exit 2 ;;
 esac
 
-echo "[*] Detecting latest release from GitHub..."
-LATEST_TAG=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
-  | sed -n 's/  *\"tag_name\": *\"\(v\{0,1\}[0-9][^"]*\)\".*/\1/p' | head -n1)
-[[ -n "${LATEST_TAG:-}" ]] || { echo "Failed to get latest tag"; exit 3; }
+echo "[*] Fetching latest release metadata…"
+API="https://api.github.com/repos/${REPO}/releases/latest"
+# 如果被 GitHub API 限流，可设置 GH_TOKEN 环境变量提高配额
+AUTH_HDR=()
+[[ -n "${GH_TOKEN:-}" ]] && AUTH_HDR=(-H "Authorization: Bearer ${GH_TOKEN}")
+JSON=$(curl -fsSL "${AUTH_HDR[@]}" "$API")
 
-VER="${LATEST_TAG#v}"
-ASSET="sing-box-${VER}-${SB_PLAT}.tar.gz"
-CHECKSUM_FILE="sing-box-${VER}-checksums.txt"
-BASE_URL="https://github.com/${REPO}/releases/download/${LATEST_TAG}"
+TAG=$(jq -r '.tag_name' <<<"$JSON")
+[[ "$TAG" != "null" && -n "$TAG" ]] || { echo "Failed to get latest tag"; exit 3; }
+echo "[*] Latest tag: $TAG"
 
-echo "[*] Latest: ${LATEST_TAG}  asset=${ASSET}"
+# 在 assets 中按候选关键词寻找合适的 tar.gz 与 checksums.txt
+ASSETS=$(jq -r '.assets[] | @base64' <<<"$JSON")
+
+pick_asset() {
+  local kw="$1"
+  for row in $ASSETS; do
+    row=$(echo "$row" | base64 -d)
+    name=$(jq -r '.name' <<<"$row")
+    url=$(jq -r '.browser_download_url' <<<"$row")
+    if [[ "$name" == *"${kw}.tar.gz" ]]; then
+      echo "$name|$url"
+      return 0
+    fi
+  done
+  return 1
+}
+
+ASSET_NAME=""
+ASSET_URL=""
+for kw in "${CANDS[@]}"; do
+  if out=$(pick_asset "$kw"); then
+    ASSET_NAME="${out%%|*}"
+    ASSET_URL="${out##*|}"
+    break
+  fi
+done
+
+[[ -n "$ASSET_NAME" ]] || { echo "No matching tar.gz asset found for arch=${DEB_ARCH} (candidates: ${CANDS[*]})"; exit 4; }
+echo "[*] Selected asset: $ASSET_NAME"
+
+# 找 checksums 文件
+CHECK_NAME=""
+CHECK_URL=""
+while read -r row; do
+  row=$(echo "$row" | base64 -d)
+  name=$(jq -r '.name' <<<"$row")
+  url=$(jq -r '.browser_download_url' <<<"$row")
+  if [[ "$name" == *checksums.txt ]]; then
+    CHECK_NAME="$name"
+    CHECK_URL="$url"
+    break
+  fi
+done <<<"$ASSETS"
+
+[[ -n "$CHECK_NAME" ]] || { echo "Checksums file not found in latest release"; exit 5; }
 
 WORKDIR="$(mktemp -d)"
 trap 'rm -rf "$WORKDIR"' EXIT
 cd "$WORKDIR"
 
-echo "[*] Downloading asset & checksums..."
-curl -fL --retry 3 -o "${ASSET}"        "${BASE_URL}/${ASSET}"
-curl -fL --retry 3 -o "${CHECKSUM_FILE}" "${BASE_URL}/${CHECKSUM_FILE}"
+echo "[*] Downloading: $ASSET_NAME"
+curl -fL --retry 3 -o "$ASSET_NAME" "$ASSET_URL"
+
+echo "[*] Downloading: $CHECK_NAME"
+curl -fL --retry 3 -o "$CHECK_NAME" "$CHECK_URL"
 
 echo "[*] Verifying sha256..."
-grep " ${ASSET}$" "${CHECKSUM_FILE}" | sha256sum -c -
+# checksums 里每行可能是 "SHA256  filename" 或 "hash  filename"
+# 都用 grep 精确匹配文件名再校验
+( grep -F " $ASSET_NAME" "$CHECK_NAME" || grep -F "  $ASSET_NAME" "$CHECK_NAME" ) | sha256sum -c -
 
 echo "[*] Extracting..."
-tar -xzf "${ASSET}"
-EXTRACT_DIR="sing-box-${VER}-${SB_PLAT}"
-[[ -x "${EXTRACT_DIR}/sing-box" ]] || { echo "Binary not found after extract"; exit 4; }
+tar -xzf "$ASSET_NAME"
+EXDIR=$(tar -tzf "$ASSET_NAME" | head -n1 | cut -d/ -f1)
+[[ -x "$EXDIR/sing-box" ]] || { echo "sing-box binary not found after extraction"; exit 6; }
 
 echo "[*] Installing binary -> ${BIN_DIR}/sing-box"
-install -m 0755 "${EXTRACT_DIR}/sing-box" "${BIN_DIR}/sing-box"
+install -m 0755 "$EXDIR/sing-box" "${BIN_DIR}/sing-box"
 
-# 创建最小运行环境（不写 config.json）
-echo "[*] Preparing user & dirs..."
-if ! id -u "${SB_USER}" >/dev/null 2>&1; then
-  useradd -r -s /usr/sbin/nologin -M "${SB_USER}"
+# 创建用户/目录（不写 config.json）
+if ! id -u "$SB_USER" >/dev/null 2>&1; then
+  useradd -r -s /usr/sbin/nologin -M "$SB_USER"
 fi
-mkdir -p "${ETC_DIR}"
-chown -R "${SB_USER}:${SB_USER}" "${ETC_DIR}"
-chmod 0755 "${ETC_DIR}"
+mkdir -p "$ETC_DIR"
+chown -R "$SB_USER:$SB_USER" "$ETC_DIR"
+chmod 0755 "$ETC_DIR"
 
-# 赋予必要能力：TUN / 低端口
-echo "[*] Setting capabilities..."
+# 赋权（TUN / 低端口）
 setcap 'cap_net_admin,cap_net_bind_service=+ep' "${BIN_DIR}/sing-box" || true
 
-# 写入 systemd（仅在存在配置文件时才启动）
-echo "[*] Writing systemd service -> ${SERVICE_FILE}"
-cat > "${SERVICE_FILE}" <<SYSTEMD
+echo "[*] Writing systemd service -> $SERVICE_FILE"
+cat > "$SERVICE_FILE" <<SYSTEMD
 [Unit]
 Description=Sing-Box Service
 After=network-online.target
@@ -108,6 +150,6 @@ echo "[*] Installed:"
 
 echo
 echo "=== DONE ==="
-echo "Binary:  $(command -v sing-box)"
-echo "Config dir: ${ETC_DIR}"
-echo "Service: systemctl start sing-box    # 仅当你放好 ${ETC_DIR}/config.json 后才会启动"
+echo "Binary:      $(command -v sing-box)"
+echo "Config dir:  ${ETC_DIR}   # 请自行放置 config.json（如 TUN 全局配置）"
+echo "Service:     systemctl start sing-box   # 仅在存在 config.json 时启动"
