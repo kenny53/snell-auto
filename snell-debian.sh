@@ -48,7 +48,7 @@ echo "[1/6] 更新系统并安装常用软件包"
 apt update && apt upgrade -y
 apt install -y curl wget vim git htop sudo lsof \
   net-tools unzip ca-certificates gnupg \
-  bash-completion build-essential openssl dnsutils ntpdate
+  bash-completion build-essential openssl dnsutils chrony
   
 ### Step 3: 启用 BBR ###
 echo "[3/6] 启用 TCP BBR 拥塞控制"
