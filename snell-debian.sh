@@ -71,16 +71,16 @@ mkdir -p "$TARGET_DIR"
 
 case "$ARCH" in
   x86_64)
-    SNELL_URL="https://dl.nssurge.com/snell/snell-server-v5.0.0-linux-amd64.zip"
+    SNELL_URL="https://dl.nssurge.com/snell/snell-server-v5.0.1-linux-amd64.zip"
     ;;
   i386|i686)
-    SNELL_URL="https://dl.nssurge.com/snell/snell-server-v5.0.0-linux-i386.zip"
+    SNELL_URL="https://dl.nssurge.com/snell/snell-server-v5.0.1-linux-i386.zip"
     ;;
   aarch64)
-    SNELL_URL="https://dl.nssurge.com/snell/snell-server-v5.0.0-linux-aarch64.zip"
+    SNELL_URL="https://dl.nssurge.com/snell/snell-server-v5.0.1-linux-aarch64.zip"
     ;;
   armv7l)
-    SNELL_URL="https://dl.nssurge.com/snell/snell-server-v5.0.0-linux-armv7l.zip"
+    SNELL_URL="https://dl.nssurge.com/snell/snell-server-v5.0.1-linux-armv7l.zip"
     ;;
   *)
     echo "❌ 不支持的架构: $ARCH"
