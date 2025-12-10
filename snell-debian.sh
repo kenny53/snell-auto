@@ -90,7 +90,7 @@ esac
 
 cd "$TARGET_DIR"
 wget -N "$SNELL_URL"
-unzip -o snell-server-v5.0.0-*.zip
+unzip -o snell-server-v5.0.1-*.zip
 chmod +x snell-server
 
 ### Step 5: 自动生成新版 snell-server.conf ###
