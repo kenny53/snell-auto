@@ -20,8 +20,6 @@ CHAIN_ENTRY="mangle_prerouting"
 CHAIN_MARK="chnroute_mark"
 SET_CHN="chnroute4"
 SET_SURGE_MACS="surge_macs"
-SET_DOH="doh_direct4"
-DOH_IPS="1.1.1.1, 76.76.2.0"
 CHNROUTE_URL="https://cdn.jsdelivr.net/gh/misakaio/chnroutes2@master/chnroutes.txt"
 CHNROUTE_FILE="/etc/chnroute.txt"
 
@@ -141,7 +139,6 @@ setup_rules() {
 
     nft add rule $NFT_TABLE "$CHAIN_MARK" ip daddr { 0.0.0.0/8, 10.0.0.0/8, 100.64.0.0/10, 127.0.0.0/8, 169.254.0.0/16, 172.16.0.0/12, 192.168.0.0/16, 224.0.0.0/3 } return
 
-    nft add rule $NFT_TABLE "$CHAIN_MARK" ip daddr @"$SET_DOH" meta mark set "$MARK_CHINA" return
     nft add rule $NFT_TABLE "$CHAIN_MARK" ip daddr @"$SET_CHN" meta mark set "$MARK_CHINA" return
     nft add rule $NFT_TABLE "$CHAIN_MARK" meta mark set "$MARK_FOREIGN"
 }
@@ -204,8 +201,6 @@ do_start() {
     nft add element $NFT_TABLE "$SET_SURGE_MACS" { 50:65:f3:30:fc:74, 1e:4a:32:c0:6a:76, 52:65:f3:03:bb:64, 8c:1f:64:47:22:66 }
 
     ensure_set "$SET_CHN" "ipv4_addr" "flags interval; auto-merge;"
-    ensure_set "$SET_DOH" "ipv4_addr" "flags interval; auto-merge;"
-    nft add element $NFT_TABLE "$SET_DOH" { $DOH_IPS }
 
     printf "${BOLD}[2/4]${RESET} 加载 IP 列表...\n"
     load_chnroute_set "$CHNROUTE_FILE" || true
@@ -234,7 +229,6 @@ do_stop() {
     nft delete chain $NFT_TABLE "$CHAIN_MARK" 2>/dev/null
     nft delete set $NFT_TABLE "$SET_CHN" 2>/dev/null
     nft delete set $NFT_TABLE "$SET_SURGE_MACS" 2>/dev/null
-    nft delete set $NFT_TABLE "$SET_DOH" 2>/dev/null
 
     printf "${BOLD}[3/3]${RESET} 刷新路由缓存...\n"
     ip route flush cache
@@ -318,9 +312,7 @@ do_status() {
     nft list chain $NFT_TABLE "$CHAIN_MARK" 2>/dev/null | grep -v '^table\|^}$' | sed 's/^/  /' || echo "  未创建"
     echo ""
 
-    printf "${BOLD}--- DoH 直连白名单 ---${RESET}\n"
-    nft list set $NFT_TABLE "$SET_DOH" 2>/dev/null | grep -E "elements|[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+" | sed 's/^/  /' || echo "  空"
-    echo ""
+
 
     printf "${BOLD}--- 策略路由规则 ---${RESET}\n"
     ip rule show | grep -E "fwmark 0x(10|20)" | sed 's/^/  /' || echo "  无"
@@ -445,8 +437,7 @@ HOTPLUG
     printf "         chnroute uninstall      完全卸载\n\n"
     printf "  ${BOLD}配置:${RESET}  Surge Gateway: ${CYAN}$GW_SURGE${RESET}\n"
     printf "         中国 IP → 主路由直连\n"
-    printf "         其他 IP → Surge 代理\n"
-    printf "         DoH 白名单 → 强制直连\n\n"
+    printf "         其他 IP → Surge 代理\n\n"
 }
 
 do_uninstall() {
